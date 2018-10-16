@@ -5,8 +5,10 @@
 #include<cstddef>
 #include <boost/preprocessor/cat.hpp>
 #include <boost/preprocessor/seq/for_each.hpp>
-
-
+#include <boost/preprocessor/seq/for_each_i.hpp>
+#include<boost/preprocessor/punctuation/comma_if.hpp>
+#include <boost/preprocessor/variadic/to_seq.hpp> 
+#include<boost/preprocessor/tuple/enum.hpp> 
 template<typename T>
 struct Reflect_Info
 {
@@ -41,7 +43,7 @@ namespace PWL {
 
 	template<typename T>
 	struct Is_Reflected <T, std::void_t<decltype(Reflect_Info<T>::name())>> : std::true_type {};
-	template<typename T> inline constexpr bool Is_Reflected_V = Is_Reflected<T>::value;
+	template<typename T> constexpr bool Is_Reflected_V = Is_Reflected<T>::value;
 }
 
 //function member withour overload
@@ -69,7 +71,7 @@ namespace PWL {
 
 //entry for function member pointer
 #define MFUNC_PROCESS(CLASS,N,...)	\
-static constexpr auto mfun_names() noexcept -> std::array<std::string_view,N>{	\
+static constexpr auto mfun_names() -> std::array<std::string_view,N>{	\
 	return { BOOST_PP_SEQ_FOR_EACH_I(MFUNC_MEMBER_NAME, _, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__)) };}	\
 static constexpr auto mfunc() noexcept{	\
 	return std::make_tuple(BOOST_PP_SEQ_FOR_EACH_I(MFUNC_MEMBER, CLASS, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))); }		\
@@ -104,14 +106,41 @@ static constexpr size_t sfunc_count = N;
 
 //static and no-static data
 #define DATA_MEMBER_NAME(r,data,i,t) BOOST_PP_COMMA_IF(i) MEMBER_NAME(t)
+#define DATA_MEMBER(r,data,i,t)	BOOST_PP_COMMA_IF(i) &dat::t
+//no-static member
+#define MDATA_PROCESS(CLASS,N,...)	\
+static constexpr auto mdata_names() noexcept ->std::array<std::string_view,N>{ \
+	 return { BOOST_PP_SEQ_FOR_EACH_I(DATA_MEMBER_NAME, _, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__)) };} \
+static constexpr auto mdata() noexcept {\
+	return std::make_tuple(BOOST_PP_SEQ_FOR_EACH_I(DATA_MEMBER, CLASS, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__)));}\
+static constexpr size_t mdata_count = N;
+//static member
+#define SDATA_PROCESS(CLASS,N,...)	\
+static constexpr auto sdata_names() noexcept ->std::array<std::string_view,N>{ \
+	 return { BOOST_PP_SEQ_FOR_EACH_I(DATA_MEMBER_NAME, _, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__)) };} \
+static constexpr auto sdata() noexcept { \
+	return std::make_tuple(BOOST_PP_SEQ_FOR_EACH_I(DATA_MEMBER, CLASS, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__)));}\
+static constexpr size_t sdata_count = N;
 
 
 //constructor 
 #define TUPLE_TO_STD_TUPLE(t) std::tuple<BOOST_PP_TUPLE_ENUM(t)>
 #define CTOR_LIST_ITEM(r,data,i,t) BOOST_PP_COMMA_IF(i) TUPLE_TO_STD_TUPLE(t)
 #define CTOR_PROCESS(class,N,...) \
-using ctor_list = std::tuple<BOOST_PP_SEQ_FOR_EACH_I(CTOR_LIST_ITEM,_,BOOST_PP_VARIADICS_TO_SEQ(__VA_ARGS__))>; \
+using ctor_list = std::tuple<BOOST_PP_SEQ_FOR_EACH_I(CTOR_LIST_ITEM,_,BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))>; \
 static constexpr size_t ctor_count = N;
+
+//dispatch
+#define MDATA(...) ((MDATA_PROCESS(__VA_ARGS__)))
+#define SDATA(...) ((SDATA_PROCESS(__VA_ARGS__)))
+#define MFUNC(...) ((MFUNC_PROCESS(__VA_ARGS__)))
+#define SFUNC(...) ((SFUNC_PROCESS(__VA_ARGS__)))
+#define CTOR(...) ((CTOR_PROCESS(__VA_ARGS__)))
+#define APPLY_PROCESS_II(c,p,n,...) p(c,n,__VA_ARGS__)
+#define APPLY_PROCESS_I(c,p,params)\
+APPLY_PROCESS_II(c,p,BOOST_PP_TUPLE_SIZE(params),BOOST_PP_TUPLE_ENUM(params))
+#define APPLY_PROCESS(r,data,tuple)\
+APPLY_PROCESS_I(data,BOOST_PP_TUPLE_ELEM(0,tuple),BOOST_PP_TUPLE_ELEM(1,tuple))
 
 /* MAIN entry */
 //nomember
