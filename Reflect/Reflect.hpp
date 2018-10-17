@@ -155,4 +155,54 @@ template<> struct Reflect_Info<c> {									\
 BOOST_PP_SEQ_FOR_EACH(APPLY_PROCESS, c, seq)						\
 };
 
-#define KATH_REFLECT(...) APPLY_MACRO(BOOST_PP_OVERLOAD(REFLECT_, __VA_ARGS__)(__VA_ARGS__))
+#define REFLECT(...) APPLY_MACRO(BOOST_PP_OVERLOAD(REFLECT_, __VA_ARGS__)(__VA_ARGS__))
+
+
+#define TMP_HAS(CAT)														\
+template<typename T,typename = void>										\
+struct BOOST_PP_CAT(has_reflect_,CAT) : std::false_type{};					\
+template<typename T>														\
+struct BOOST_PP_CAT(has_reflect_,CAT)<T,std::void_t<						\
+	decltype(T::BOOST_PP_CAT(CAT, _names)()),								\
+	decltype(T::BOOST_PP_CAT(CAT, BOOST_PP_EMPTY())())>>:std::true_type{};	\
+template<typename T,typename = void>										\
+struct BOOST_PP_CAT(has_visit_,CAT) : std::false_type{};					\
+template<typename T>														\
+struct BOOST_PP_CAT(has_visit_,CAT)<T,std::void_t<							\
+	decltype(std::declval<T>().BOOST_PP_CAT(visit_,CAT)(					\
+	std::declval<int>(),													\
+	std::declval<size_t>(),													\
+	std::declval<int>(),													\
+	))>> : std::true_type{};
+
+#define TMP_VISIT(CAT)\
+template<typename T,typename V>\
+inline static auto BOOST_PP_CAT(visit_,CAT)(Reflect_Info<T>,V const& visitor) noexcept\
+->std::enable_if<>
+
+#define VISIT_SEQ (mdata)(sdata)(mfunc)(sfunc)
+#define VISIT_PROC(r,data,elem) BOOST_PP_CAT(visit_,elem)(ri,visitor)
+#define TMP_HAS_PROC(r,data,elem) 
+#define TMP_VISIT_PROC(r,data,elem)
+
+namespace PWL
+{
+	template < typename T>
+	struct negation : std::bool_constant<!T::value> {};
+
+	template < typename T>
+	inline constexpr bool negation_v = negation<T>::value;
+
+	struct swallow_t
+	{
+		template < typename ... T>
+		constexpr swallow_t(T&& ... t) noexcept {}
+
+	};
+
+	template <bool Test, typename T = void>
+	using disable_if = std::enable_if<negation_v<std::bool_constant<Test>>, T>;
+
+	template <bool Test, typename T = void>
+	using disable_if_t = typename disable_if<Test, T>::type;
+}
