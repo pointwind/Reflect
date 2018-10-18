@@ -2,6 +2,7 @@
 #include<string_view>
 #include<tuple>
 #include<array>
+#include<type_traits>
 #include<cstddef>
 #include <boost/preprocessor/cat.hpp>
 #include <boost/preprocessor/seq/for_each.hpp>
@@ -175,10 +176,30 @@ struct BOOST_PP_CAT(has_visit_,CAT)<T,std::void_t<							\
 	std::declval<int>(),													\
 	))>> : std::true_type{};
 
-#define TMP_VISIT(CAT)\
-template<typename T,typename V>\
-inline static auto BOOST_PP_CAT(visit_,CAT)(Reflect_Info<T>,V const& visitor) noexcept\
-->std::enable_if<>
+
+#define TMP_VISIT(CAT)																	\
+template<typename T,typename V>															\
+inline static auto BOOST_PP_CAT(visit_,CAT)(Reflect_Info<T>,V const& visitor) noexcept	\
+->std::enable_if<std::conjunction<														\
+	BOOST_PP_CAT(has_reflect_,CAT)<Reflect_Info<T>>,									\
+	BOOST_PP_CAT(has_visit_,CAT)<T>>::value>{											\
+	using reflect_info_t = Reflect_Info<T>;												\
+	constexpr size_t size = reflect_info_t::BOOST_PP_CAT(CAT,_count);					\
+	visit_loop(																			\
+	reflect_info_t::BOOST_PP_CAT(CAT,_names),											\
+	reflect_info_t::BOOST_PP_CAT(CAT,BOOST_PP_EMPTY())(),								\
+	[&visitor](auto ...args){															\
+	visitor::BOOST_PP_CAT(visit_,CAT)(std::forward<decltype(args)>(args)...);},			\
+	std::make_sequence<size>{});														\
+}																						\
+template<typename T,typename V>															\
+inline static auto BOOST_PP_CAT(visit_,CAT)(Reflect_Info<T>,V const& visitor) noexcept	\
+->std::disable_if<std::conjunction<														\
+	BOOST_PP_CAT(has_reflect_,CAT)<Reflect_Info<T>>,									\
+	BOOST_PP_CAT(has_visit_,CAT)<T>>::value>{}
+
+
+
 
 #define VISIT_SEQ (mdata)(sdata)(mfunc)(sfunc)
 #define VISIT_PROC(r,data,elem) BOOST_PP_CAT(visit_,elem)(ri,visitor)
@@ -205,4 +226,20 @@ namespace PWL
 
 	template <bool Test, typename T = void>
 	using disable_if_t = typename disable_if<Test, T>::type;
+}
+namespace PWL
+{
+	BOOST_PP_SEQ_FOR_EACH(TMP_HAS_PROC, _, VISIT_SEQ)
+
+	template<typename T,typename = void>
+	struct has_ctor_list : std::false_type{};
+	template<typename T>
+	struct has_ctor_list< T, std::void_t<
+		typename T::ctor_list>> : std::true_type{};
+
+	template<typename T, typename = void>
+	struct has_visit_ctor : std::false_type {};
+	template<typename T>
+	struct has_visit_ctor< T, std::void_t<
+		decltype(&T::visit_ctor)>> : std::true_type{};
 }
