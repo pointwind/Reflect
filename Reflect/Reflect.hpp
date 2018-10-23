@@ -4,6 +4,7 @@
 #include<array>
 #include<type_traits>
 #include<cstddef>
+#include <iostream>
 #include <boost/preprocessor/cat.hpp>
 #include <boost/preprocessor/seq/for_each.hpp>
 #include <boost/preprocessor/seq/for_each_i.hpp>
@@ -11,6 +12,7 @@
 #include <boost/preprocessor/variadic/to_seq.hpp> 
 #include<boost/preprocessor/tuple/enum.hpp> 
 #include"mpl.h"
+
 template<typename T>
 struct Reflect_Info
 {
@@ -205,6 +207,41 @@ inline static auto BOOST_PP_CAT(visit_, CAT)(Reflect_Info<T>, V const& visitor) 
 #define VISIT_PROC(r,data,elem) BOOST_PP_CAT(visit_,elem)(ri,visitor);
 #define TMP_HAS_PROC(r,data,elem) TMP_HAS(elem)
 #define TMP_VISIT_PROC(r,data,elem) TMP_VISIT(elem)
+
+namespace PWL
+{
+	struct visitor
+	{
+		template<typename Ptr,typename Arr>
+			void visit_sdata(std::string_view const& name,
+				Ptr ptr, size_t index, Arr const& names) const
+		{
+			std::cout << name << index << std::endl;
+		}
+
+		template<typename PMD,typename Arr>
+			void visit_mdata(std::string_view const& name,
+				PMD pmd, size_t index, Arr const& names) const
+		{
+			std::cout << name << index << std::endl;
+		}
+
+		template<typename FPtr, typename Arr>
+		void visit_sfunc(std::string_view const& name,
+				FPtr ptr, size_t index, Arr const& names) const
+		{
+			std::cout << name << index << std::endl;
+		}
+
+		template<typename PMF, typename Arr>
+		void visit_mfunc(std::string_view const& name,
+				PMF pmf, size_t index, Arr const& names) const
+		{
+			std::cout << name << index << std::endl;
+		}
+	};
+}
+
 
 
 namespace PWL
